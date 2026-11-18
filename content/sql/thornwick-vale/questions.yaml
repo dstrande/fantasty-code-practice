@@ -1,0 +1,327 @@
+# Questions for the Thornwick Vale setting.
+#
+# Fields:
+#   id          unique within the setting, never reused (progress is stored by id)
+#   title       short name shown in the question list
+#   difficulty  1 (easy) to 3 (hard)
+#   concepts    tags used for filtering and the learning path
+#   prompt      the task, in Markdown-ish plain text
+#   solution    reference SQL; the learner's result must match its result
+#   ordered     true if row order matters (the prompt must state the ordering, including tie-breaks)
+#   verify      optional; for questions that change data. Run after the learner's SQL and after the
+#               solution, each on a fresh database, and the two results are compared.
+#   hints       revealed one at a time, least to most specific
+
+questions:
+  - id: monster-manual
+    title: Know your foes
+    difficulty: 1
+    concepts: [select]
+    prompt: |
+      The guild's new recruits need a cheat sheet. List the **name**, **type** and
+      **challenge_rating** of every monster.
+    solution: |
+      SELECT name, type, challenge_rating FROM monsters;
+    hints:
+      - Use SELECT with a list of columns and FROM with the table name.
+
+  - id: undead-roll-call
+    title: Undead roll call
+    difficulty: 1
+    concepts: [where]
+    prompt: |
+      A cleric wants to know what's waiting in the crypts. List the **name** and
+      **hit_points** of every monster whose type is `undead`.
+    solution: |
+      SELECT name, hit_points FROM monsters WHERE type = 'undead';
+    hints:
+      - Filter rows with a WHERE clause.
+      - Text values go in single quotes, like 'undead'.
+
+  - id: deadliest-five
+    title: The deadliest five
+    difficulty: 1
+    concepts: [order-by, limit]
+    ordered: true
+    prompt: |
+      Show the **name** and **xp** of the five monsters worth the most XP, highest XP
+      first. Break ties by name, alphabetically.
+    solution: |
+      SELECT name, xp FROM monsters ORDER BY xp DESC, name ASC LIMIT 5;
+    hints:
+      - ORDER BY can take several columns, each with its own direction.
+      - LIMIT keeps only the first N rows.
+
+  - id: first-cantrips
+    title: Cantrips for beginners
+    difficulty: 1
+    concepts: [where]
+    prompt: |
+      Cantrips are level 0 spells. List the **name** and **school** of every cantrip.
+    solution: |
+      SELECT name, school FROM spells WHERE level = 0;
+    hints:
+      - The level column is a number, so no quotes are needed.
+
+  - id: self-centred
+    title: Self-centred spells
+    difficulty: 1
+    concepts: [like]
+    prompt: |
+      Some spells have a range of `Self`, or start with `Self` and give an area,
+      like `Self (60-foot cone)`. List the **name** and **range** of every spell whose
+      range starts with `Self`.
+    solution: |
+      SELECT name, range FROM spells WHERE range LIKE 'Self%';
+    hints:
+      - LIKE matches text patterns. % stands for any run of characters.
+
+  - id: careful-casting
+    title: Careful casting
+    difficulty: 2
+    concepts: [where, and-or]
+    prompt: |
+      List the **name** and **level** of spells below level 3 that either require
+      concentration or can be cast as a ritual. (Both columns hold 1 for yes and 0 for no.)
+    solution: |
+      SELECT name, level FROM spells
+      WHERE level < 3 AND (concentration = 1 OR ritual = 1);
+    hints:
+      - AND is applied before OR, so you'll need parentheses.
+
+  - id: monster-census
+    title: Monster census
+    difficulty: 1
+    concepts: [group-by, aggregates]
+    prompt: |
+      How many monsters of each type does the guild know about? Show each **type** and
+      the number of monsters of that type.
+    solution: |
+      SELECT type, COUNT(*) AS monster_count FROM monsters GROUP BY type;
+    hints:
+      - GROUP BY type makes one group per type.
+      - COUNT(*) counts the rows in each group.
+
+  - id: tough-types
+    title: Tough types
+    difficulty: 2
+    concepts: [group-by, having, aggregates]
+    prompt: |
+      Which monster types average more than 100 hit points? Show each **type** and its
+      average hit points, **rounded to one decimal place**.
+    solution: |
+      SELECT type, ROUND(AVG(hit_points), 1) AS avg_hp
+      FROM monsters
+      GROUP BY type
+      HAVING AVG(hit_points) > 100;
+    hints:
+      - WHERE filters rows before grouping. HAVING filters groups after.
+      - ROUND(value, 1) rounds to one decimal place.
+
+  - id: whos-who
+    title: Who's who
+    difficulty: 2
+    concepts: [join]
+    prompt: |
+      The guild ledger only stores race and class ids. List each adventurer's **name**,
+      their **race name** and their **class name**.
+    solution: |
+      SELECT a.name, r.name AS race, c.name AS class
+      FROM adventurers a
+      JOIN races r ON r.id = a.race_id
+      JOIN classes c ON c.id = a.class_id;
+    hints:
+      - Join adventurers to races on race_id, then to classes on class_id.
+      - Table aliases (FROM adventurers a) keep the query short.
+
+  - id: lone-wolves
+    title: Lone wolves
+    difficulty: 1
+    concepts: [null]
+    prompt: |
+      List the **name** of every adventurer who isn't in a party.
+    solution: |
+      SELECT name FROM adventurers WHERE party_id IS NULL;
+    hints:
+      - Missing values are NULL, and "= NULL" is never true. There's a special operator for this.
+
+  - id: class-popularity
+    title: Class popularity
+    difficulty: 2
+    concepts: [left-join, group-by, aggregates]
+    prompt: |
+      For **every** class, show its **name** and how many adventurers have that class.
+      Classes nobody has chosen should appear with a count of 0.
+    solution: |
+      SELECT c.name, COUNT(a.id) AS adventurer_count
+      FROM classes c
+      LEFT JOIN adventurers a ON a.class_id = c.id
+      GROUP BY c.id, c.name;
+    hints:
+      - An inner JOIN drops classes with no adventurers. A LEFT JOIN keeps them.
+      - COUNT(*) counts the NULL row a LEFT JOIN produces. COUNT(a.id) doesn't.
+
+  - id: unclaimed-treasure
+    title: Unclaimed treasure
+    difficulty: 2
+    concepts: [subqueries, not-exists]
+    prompt: |
+      Which magic items does nobody own? List their **name** and **rarity**.
+    solution: |
+      SELECT m.name, m.rarity
+      FROM magic_items m
+      WHERE NOT EXISTS (SELECT 1 FROM inventory i WHERE i.item_id = m.id);
+    hints:
+      - Try NOT EXISTS, NOT IN, or a LEFT JOIN where the inventory side is NULL.
+
+  - id: corwins-spellbook
+    title: Corwin's spellbook
+    difficulty: 2
+    concepts: [join, many-to-many]
+    prompt: |
+      List the **name** and **level** of every spell of level 3 or higher that
+      Corwin Ashby knows.
+    solution: |
+      SELECT s.name, s.level
+      FROM adventurers a
+      JOIN adventurer_spells x ON x.adventurer_id = a.id
+      JOIN spells s ON s.id = x.spell_id
+      WHERE a.name = 'Corwin Ashby' AND s.level >= 3;
+    hints:
+      - adventurer_spells links adventurers to spells. Join through it.
+
+  - id: party-glory
+    title: Glory of the parties
+    difficulty: 3
+    concepts: [join, group-by, aggregates]
+    prompt: |
+      A party earns a monster's XP for each monster it defeats (`encounters.defeated = 1`).
+      Each encounter row has a quantity, so a defeated group of 8 goblins counts as 8 goblins.
+      Show each party's **name** and the **total XP** it has earned, for parties that
+      have earned any.
+    solution: |
+      SELECT p.name, SUM(e.quantity * m.xp) AS total_xp
+      FROM parties p
+      JOIN quests q ON q.party_id = p.id
+      JOIN encounters e ON e.quest_id = q.id
+      JOIN monsters m ON m.id = e.monster_id
+      WHERE e.defeated = 1
+      GROUP BY p.id, p.name;
+    hints:
+      - The path is parties → quests → encounters → monsters.
+      - Multiply before you sum. SUM(quantity * xp) works.
+
+  - id: above-average
+    title: Above average
+    difficulty: 2
+    concepts: [subqueries]
+    prompt: |
+      List the **name** and **hit_points** of every monster with more hit points than
+      the average across all monsters.
+    solution: |
+      SELECT name, hit_points FROM monsters
+      WHERE hit_points > (SELECT AVG(hit_points) FROM monsters);
+    hints:
+      - A subquery in parentheses can produce a single value to compare against.
+
+  - id: threat-tiers
+    title: Threat tiers
+    difficulty: 2
+    concepts: [case, group-by]
+    prompt: |
+      Sort monsters into tiers by challenge rating:
+      - `minion` for CR below 1
+      - `standard` for CR from 1 up to (but not including) 5
+      - `elite` for CR from 5 up to (but not including) 15
+      - `legendary` for CR 15 and above
+
+      Show each **tier** and the **number of monsters** in it.
+    solution: |
+      SELECT
+        CASE
+          WHEN challenge_rating < 1 THEN 'minion'
+          WHEN challenge_rating < 5 THEN 'standard'
+          WHEN challenge_rating < 15 THEN 'elite'
+          ELSE 'legendary'
+        END AS tier,
+        COUNT(*) AS monster_count
+      FROM monsters
+      GROUP BY tier;
+    hints:
+      - CASE WHEN ... THEN ... ELSE ... END turns values into labels.
+      - CASE checks conditions in order, so each WHEN only needs an upper bound.
+
+  - id: richest-in-party
+    title: Deepest pockets
+    difficulty: 3
+    concepts: [window-functions, subqueries]
+    prompt: |
+      For each party, find the member carrying the most gold. Show the **party name**,
+      the **adventurer's name** and their **gold**.
+    solution: |
+      SELECT party, name, gold FROM (
+        SELECT p.name AS party, a.name, a.gold,
+               ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY a.gold DESC) AS rn
+        FROM adventurers a
+        JOIN parties p ON p.id = a.party_id
+      ) AS ranked
+      WHERE rn = 1;
+    hints:
+      - ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ...) numbers rows within each group.
+      - You can't filter on a window function in WHERE directly. Wrap it in a subquery or CTE.
+
+  - id: archmage-lineage
+    title: The Archmage's lineage
+    difficulty: 3
+    concepts: [cte, recursive-cte]
+    prompt: |
+      Ysolde Varn has trained apprentices, who trained apprentices of their own.
+      `adventurers.mentor_id` points at each adventurer's mentor. List the **name** of
+      everyone in Ysolde's lineage, not including Ysolde, and their **generation**:
+      1 for her direct apprentices, 2 for their apprentices, and so on.
+    solution: |
+      WITH RECURSIVE lineage(id, name, generation) AS (
+        SELECT id, name, 1 FROM adventurers
+        WHERE mentor_id = (SELECT id FROM adventurers WHERE name = 'Ysolde Varn')
+        UNION ALL
+        SELECT a.id, a.name, l.generation + 1
+        FROM adventurers a
+        JOIN lineage l ON a.mentor_id = l.id
+      )
+      SELECT name, generation FROM lineage;
+    hints:
+      - WITH RECURSIVE has a starting query, UNION ALL, then a query that joins back to the CTE.
+      - Start from Ysolde's direct apprentices with generation 1.
+
+  - id: dragon-ranks
+    title: Ranking the dragons
+    difficulty: 3
+    concepts: [window-functions]
+    prompt: |
+      Rank the dragons by challenge rating, highest first. Show each dragon's **name**,
+      **challenge_rating** and **rank**. Dragons with the same CR share a rank, and the
+      next rank skips ahead (1, 2, 2, 4…).
+    solution: |
+      SELECT name, challenge_rating,
+             RANK() OVER (ORDER BY challenge_rating DESC) AS cr_rank
+      FROM monsters
+      WHERE type = 'dragon';
+    hints:
+      - RANK() gives ties the same rank and leaves gaps. DENSE_RANK() leaves no gaps.
+
+  - id: level-up
+    title: Level up!
+    difficulty: 1
+    concepts: [update]
+    prompt: |
+      Pip Thistledown has finished their training. Increase Pip's **level** by 1 and
+      their **hp_max** by 6.
+    solution: |
+      UPDATE adventurers
+      SET level = level + 1, hp_max = hp_max + 6
+      WHERE name = 'Pip Thistledown';
+    verify: |
+      SELECT id, name, level, hp_max FROM adventurers;
+    hints:
+      - UPDATE table SET column = expression WHERE condition.
+      - Without WHERE, every adventurer levels up!

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.local
+*.tsbuildinfo
+.DS_Store
+
+# Private content packs (e.g. copyrighted settings generated locally). Never committed.
+content-private/*
+!content-private/README.md
